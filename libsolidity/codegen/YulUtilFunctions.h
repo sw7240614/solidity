@@ -22,6 +22,7 @@
 
 #include <liblangutil/EVMVersion.h>
 
+#include <libsolidity/ast/Types.h>
 #include <libsolidity/codegen/MultiUseYulFunctionCollector.h>
 
 #include <libsolidity/interface/DebugSettings.h>
@@ -322,6 +323,23 @@ public:
 	static std::string revertReasonIfDebug(RevertStrings revertStrings, std::string const& _message = "");
 
 	std::string revertReasonIfDebug(std::string const& _message = "");
+
+	/// Generates the function-body and returns the function name for a function to decode the
+	/// return parameters.
+	///
+	/// @param _revertStrings     RevertStrings configuration from current context.
+	/// @param _returnTypes       Function call's return types.
+	/// @param _dynamicReturnSize Whether or not the return size is determined dynamically.
+	/// @param _retVars           Comma separated list of IR variable symbols to assign the decoded
+	///                           parameters to.
+	///
+	/// @returns helper function-name used to decode return parameters.
+	std::string decodeReturnParametersFunction(
+		RevertStrings _revertStrings,
+		TypePointers const& _returnTypes,
+		bool _dynamicReturnSize,
+		std::string const& _retVars
+	);
 
 	/// @returns helper function that tries to decode the error message from a "structured" revert() instruction.
 	std::string tryDecodeErrorMessageFunction();

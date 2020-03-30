@@ -1322,7 +1322,9 @@ void IRGeneratorForStatements::appendExternalFunctionCall(
 	templ("shl28", m_utils.shiftLeftFunction(8 * (32 - 4)));
 	templ("funId", IRVariable(_functionCall.expression()).part("functionIdentifier").name());
 	templ("address", IRVariable(_functionCall.expression()).part("address").name());
-	templ("decodeReturnParameters", decodeReturnParameters());
+
+	solAssert(m_returnInfo.has_value() && m_returnInfo->functionCall != nullptr, "");
+	templ("decodeReturnParameters", decodeReturnParameters(*m_returnInfo));
 
 	templ("isTryCall", _functionCall.annotation().tryCall);
 	if (_functionCall.annotation().tryCall)
@@ -1738,14 +1740,16 @@ bool IRGeneratorForStatements::visit(TryStatement const& _tryStatement)
 	solAssert(m_returnInfo.has_value(), "");
 	solAssert(m_returnInfo.value().functionCall == &_tryStatement.externalCall(), "");
 
-	auto const trySuccessCondition = m_context.trySuccessConditionVariable(_tryStatement.externalCall());
+	ReturnInfo const returnInfo = move(*m_returnInfo);
+	m_returnInfo.reset();
+
+	string const trySuccessCondition = m_context.trySuccessConditionVariable(_tryStatement.externalCall());
 
 	m_code << "switch iszero(" << trySuccessCondition << ")\n";
 
 	m_code << "case 0 { // success case\n";
 	TryCatchClause const& successClause = *_tryStatement.clauses().front();
-	decodeTryCallReturnParameters(successClause);
-	m_returnInfo.reset();
+	decodeTryCallReturnParameters(successClause, returnInfo);
 	successClause.block().accept(*this);
 	m_code << "}\n";
 
@@ -1756,43 +1760,41 @@ bool IRGeneratorForStatements::visit(TryStatement const& _tryStatement)
 	return false;
 }
 
-string IRGeneratorForStatements::decodeReturnParameters()
+string IRGeneratorForStatements::decodeReturnParameters(ReturnInfo const& _returnInfo)
 {
-	ABIFunctions abi(m_context.evmVersion(), m_context.revertStrings(), m_context.functionCollector());
-	solAssert(m_returnInfo.has_value() && m_returnInfo->functionCall != nullptr, "");
+	auto const retVars = IRVariable(*_returnInfo.functionCall).commaSeparatedList();
+	if (retVars.empty())
+		return "";
 
 	return Whiskers(R"(
-		<?dynamicReturnSize>
-			// copy dynamic return data out
-			returndatacopy(<pos>, 0, returndatasize())
-		</dynamicReturnSize>
-
-		// update freeMemoryPointer according to dynamic return size
-		mstore(<freeMemoryPointer>, add(<pos>, and(add(<returnSize>, 0x1f), not(0x1f))))
-
-		// decode return parameters from external try-call into <retVars>
-		let <retVars> := <abiDecode>(<pos>, add(<pos>, <returnSize>))
+		let <retVars> := <decodeReturnParameters>(<pos>, <returnSize>)
 	)")
-	("retVars", IRVariable(*m_returnInfo->functionCall).commaSeparatedList())
-	("pos", m_returnInfo->returndataVariable)
-	("abiDecode", abi.tupleDecoder(m_returnInfo->returnTypes, true))
-	("freeMemoryPointer", to_string(CompilerUtils::freeMemoryPointer))
-	("dynamicReturnSize", m_returnInfo->dynamicReturnSize)
+	("retVars", retVars)
+	("decodeReturnParameters",
+		m_utils.decodeReturnParametersFunction(
+			m_context.revertStrings(),
+			_returnInfo.returnTypes,
+			_returnInfo.dynamicReturnSize,
+			retVars
+		)
+	)
+	("pos", _returnInfo.returndataVariable)
 	("returnSize",
-		m_context.evmVersion().supportsReturndata()
-			? "returndatasize()"s
-			: to_string(m_returnInfo->estimatedReturnSize)
+		m_context.evmVersion().supportsReturndata() ?
+		"returndatasize()"s :
+		to_string(_returnInfo.estimatedReturnSize)
 	).render();
 }
 
-void IRGeneratorForStatements::decodeTryCallReturnParameters(TryCatchClause const& _successClause)
+void IRGeneratorForStatements::decodeTryCallReturnParameters(
+	TryCatchClause const& _successClause,
+	ReturnInfo const& _returnInfo
+)
 {
-	solAssert(m_returnInfo.has_value(), "");
-	solAssert(m_returnInfo->functionCall != nullptr, "");
 	if (!_successClause.parameters())
 		return;
 
-	m_code << decodeReturnParameters();
+	m_code << decodeReturnParameters(_returnInfo);
 
 	if (_successClause.parameters()->parameters().size() > 1)
 	{
@@ -1802,7 +1804,7 @@ void IRGeneratorForStatements::decodeTryCallReturnParameters(TryCatchClause cons
 			solAssert(varDecl, "");
 			define(
 				m_context.addLocalVariable(*varDecl),
-				IRVariable(*m_returnInfo->functionCall).tupleComponent(i++)
+				IRVariable(*_returnInfo.functionCall).tupleComponent(i++)
 			);
 		}
 	}
@@ -1810,7 +1812,7 @@ void IRGeneratorForStatements::decodeTryCallReturnParameters(TryCatchClause cons
 	{
 		define(
 			m_context.addLocalVariable(*_successClause.parameters()->parameters().front()),
-			IRVariable(*m_returnInfo->functionCall)
+			IRVariable(*_returnInfo.functionCall)
 		);
 	}
 }
@@ -1822,7 +1824,7 @@ void IRGeneratorForStatements::handleCatch(TryStatement const& _tryStatement)
 	else if (_tryStatement.fallbackClause())
 		handleCatchFallback(*_tryStatement.fallbackClause());
 	else
-		m_code << rethrowCode();
+		rethrow();
 }
 
 void IRGeneratorForStatements::handleCatchStructured(TryCatchClause const& _structured, TryCatchClause const* _fallback)
@@ -1856,7 +1858,7 @@ void IRGeneratorForStatements::handleCatchStructured(TryCatchClause const& _stru
 	if (_fallback)
 		handleCatchFallback(*_fallback);
 	else
-		m_code << rethrowCode();
+		rethrow();
 	m_code << "}\n";
 }
 
@@ -1900,15 +1902,15 @@ void IRGeneratorForStatements::handleCatchFallback(TryCatchClause const& _fallba
 	_fallback.accept(*this);
 }
 
-string IRGeneratorForStatements::rethrowCode() const
+void IRGeneratorForStatements::rethrow()
 {
 	if (m_context.evmVersion().supportsReturndata())
-		return R"(
+		m_code << R"(
 			returndatacopy(0, 0, returndatasize())
 			revert(0, returndatasize())
 		)"s;
 	else
-		return "revert(0, 0) // rethrow\n"s;
+		m_code << "revert(0, 0) // rethrow\n"s;
 }
 
 bool IRGeneratorForStatements::visit(TryCatchClause const& _clause)

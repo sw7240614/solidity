@@ -25,7 +25,8 @@
 #include <functional>
 #include <string>
 
-namespace solidity::frontend {
+namespace solidity::frontend
+{
 
 class FunctionCall;
 
@@ -35,10 +36,10 @@ struct ReturnInfo
 	/// Related function call this ReturnInfo was generated from.
 	FunctionCall const* functionCall = nullptr;
 
-	/// Yul variable name, containing the decoded returned data for the related function call.
+	/// Name of the yul variable pointing at the memory location of the (undecoded) return data.
 	std::string returndataVariable = {};
 
-	/// Vector of TypePointer, for each return variable.
+	/// Vector of TypePointer, for each return variable. Dynamic types are already replaced if required.
 	TypePointers returnTypes = {};
 
 	/// Boolean, indicating whether or not return size is only known at runtime.
@@ -57,7 +58,7 @@ public:
 	/// Assembles some information about the return types and related.
 	///
 	/// @param _functionCall the FunctionCall to extract the return-data information from.
-	/// @param _yulVariable Used by the caller to remember the corresponding Yul-variable used for storing decoded return values.
+	/// @param _yulVariable Used by the caller to remember the corresponding Yul-variable used for storing undecoded return values.
 	///
 	/// @returns an info-struct containing the collected information including the passed input variables.
 	[[nodiscard]] ReturnInfo collect(FunctionCall const& _functionCall, std::string _yulVariable);
@@ -65,7 +66,7 @@ public:
 	/// Assembles some information about the return types and related.
 	///
 	/// @param _functionType the actual function type information to compute the return-info from.
-	/// @param _yulVariable Can be used by the caller to remember the corresponding Yul-variable used for storing decoded return values.
+	/// @param _yulVariable Can be used by the caller to remember the corresponding Yul-variable used for storing undecoded return values.
 	/// @param _functionCall Can be used by the caller to remember the corresponding FunctionCall.
 	///
 	/// @returns an info-struct containing the collected information, optionally also with the input

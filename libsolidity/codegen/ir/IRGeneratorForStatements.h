@@ -78,18 +78,24 @@ public:
 
 private:
 	/// @returns some Yul code to decode the return parameters of the current call.
-	std::string decodeReturnParameters();
+	std::string decodeReturnParameters(ReturnInfo const& _returnInfo);
 
 	/// Handles all catch cases of a try statement, except the success-case.
 	void handleCatch(TryStatement const& _tryStatement);
-	void handleCatchStructured(TryCatchClause const& _structured, TryCatchClause const* _fallback);
+	void handleCatchStructured(
+		TryCatchClause const& _structured,
+		TryCatchClause const* _fallback
+	);
 	void handleCatchFallback(TryCatchClause const& _fallback);
 
 	/// Generates code to rethrow an exception.
-	std::string rethrowCode() const;
+	void rethrow();
 
 	/// Generates the code for decoding the return parameters in a try call.
-	void decodeTryCallReturnParameters(TryCatchClause const& _successClause);
+	void decodeTryCallReturnParameters(
+		TryCatchClause const& _successClause,
+		ReturnInfo const& _returnInfo
+	);
 
 	/// Appends code to call an external function with the given arguments.
 	/// All involved expressions have already been visited.

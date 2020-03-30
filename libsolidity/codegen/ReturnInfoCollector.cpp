@@ -36,8 +36,11 @@ ReturnInfo ReturnInfoCollector::collect(FunctionCall const& _functionCall, std::
 ReturnInfo ReturnInfoCollector::collect(FunctionType const& _functionType, std::string _newYulVariable, FunctionCall const* _functionCall)
 {
 	FunctionType::Kind const funKind = _functionType.kind();
-	bool const returnSuccessConditionAndReturndata = funKind == FunctionType::Kind::BareCall || funKind == FunctionType::Kind::BareDelegateCall || funKind == FunctionType::Kind::BareStaticCall;
 	bool const haveReturndatacopy = m_evmVersion.supportsReturndata();
+	bool const returnSuccessConditionAndReturndata =
+		funKind == FunctionType::Kind::BareCall ||
+		funKind == FunctionType::Kind::BareDelegateCall ||
+		funKind == FunctionType::Kind::BareStaticCall;
 
 	TypePointers returnTypes{};
 	bool dynamicReturnSize = false;
