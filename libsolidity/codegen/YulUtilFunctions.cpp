@@ -2279,7 +2279,7 @@ std::string YulUtilFunctions::decodeReturnParametersFunction(
 				</dynamicReturnSize>
 
 				// update freeMemoryPointer according to dynamic return size
-				mstore(<freeMemoryPointer>, add(dataMpos, and(add(returnSize, 0x15), not(0x1f))))
+				mstore(<freeMemoryPointer>, add(dataMpos, and(add(returnSize, 0x3f), not(0x1f))))
 
 				// decode return parameters from external try-call into retVars
 				<retVars> := <abiDecode>(dataMpos, add(dataMpos, returnSize))
@@ -2303,7 +2303,7 @@ std::string YulUtilFunctions::tryDecodeErrorMessageFunction()
 		string const errorHash = FixedHash<4>(util::keccak256("Error(string)")).hex();
 		return util::Whiskers(R"(
 			function <functionName>() -> data {
-				data := mload(0x40)
+				data := mload(<freeMemoryPointer>)
 				mstore(data, 0)
 
 				if lt(returndatasize(), 0x44) {
@@ -2341,12 +2341,13 @@ std::string YulUtilFunctions::tryDecodeErrorMessageFunction()
 					leave
 				}
 
-				mstore(0x40, and(add(end, 0x1f), not(0x1f)))
+				mstore(<freeMemoryPointer>, and(add(end, 0x1f), not(0x1f)))
 				data := msg
 			}
 		)")
 		("ErrorSignature", errorHash)
 		("functionName", functionName)
+		("freeMemoryPointer", to_string(CompilerUtils::freeMemoryPointer))
 		("getSig",
 			m_evmVersion.hasBitwiseShifting() ?
 			"shr(224, mload(0))" :

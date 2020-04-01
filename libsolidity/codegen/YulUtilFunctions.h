@@ -341,6 +341,10 @@ public:
 		std::string const& _retVars
 	);
 
+	/// The returned function either fails upon coding and then returns 0,
+	/// on success, the returned function returns a newly allocated memory storage
+	/// containing the decoded error message.
+	///
 	/// @returns helper function that tries to decode the error message from a "structured" revert() instruction.
 	std::string tryDecodeErrorMessageFunction();
 

@@ -1880,23 +1880,24 @@ void IRGeneratorForStatements::handleCatchFallback(TryCatchClause const& _fallba
 			m_code << "let " << parameterVariableName << " := " << CompilerUtils::zeroPointer;
 		else
 			m_code << Whiskers(R"(
-				let <v> := returndatasize()
-				switch <v>
+				let <returndata> := returndatasize()
+				switch <returndata>
 				case 0 {
-					<v> := 0x60
+					<returndata> := 0x60
 				}
 				default {
 					// TODO: allocate via allocateMemoryArrayFunction(...)
-					// allocate some memory into <v> of size returndatasize() + PADDING
-					<v> := mload(0x40)
-					mstore(0x40, add(<v>, and(add(returndatasize(), 0x3f), not(0x1f))))
+					// allocate some memory into <returndata> of size returndatasize() + PADDING
+					<returndata> := mload(<freeMemoryPointer>)
+					mstore(<freeMemoryPointer>, add(<returndata>, and(add(returndatasize(), 0x3f), not(0x1f))))
 					// store array length into the front
-					mstore(<v>, returndatasize())
+					mstore(<returndata>, returndatasize())
 					// append returndata
-					returndatacopy(add(<v>, 0x20), 0, returndatasize())
+					returndatacopy(add(<returndata>, 0x20), 0, returndatasize())
 				}
 			)")
-			("v", parameterVariableName)
+			("returndata", parameterVariableName)
+			("freeMemoryPointer", to_string(CompilerUtils::freeMemoryPointer))
 			.render();
 	}
 	_fallback.accept(*this);

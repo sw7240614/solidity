@@ -58,20 +58,24 @@ public:
 	/// Assembles some information about the return types and related.
 	///
 	/// @param _functionCall the FunctionCall to extract the return-data information from.
-	/// @param _yulVariable Used by the caller to remember the corresponding Yul-variable used for storing undecoded return values.
+	/// @param _returndataYulVariable Used by the caller to remember the corresponding Yul-variable used for storing undecoded return values.
 	///
 	/// @returns an info-struct containing the collected information including the passed input variables.
-	[[nodiscard]] ReturnInfo collect(FunctionCall const& _functionCall, std::string _yulVariable);
+	[[nodiscard]] ReturnInfo collect(FunctionCall const& _functionCall, std::string _returndataYulVariable);
 
 	/// Assembles some information about the return types and related.
 	///
 	/// @param _functionType the actual function type information to compute the return-info from.
-	/// @param _yulVariable Can be used by the caller to remember the corresponding Yul-variable used for storing undecoded return values.
+	/// @param _returndataYulVariable Can be used by the caller to remember the corresponding Yul-variable used for storing undecoded return values.
 	/// @param _functionCall Can be used by the caller to remember the corresponding FunctionCall.
 	///
 	/// @returns an info-struct containing the collected information, optionally also with the input
-	///          avariables @p _yulVariable and @p _functionCall.
-	[[nodiscard]] ReturnInfo collect(FunctionType const& _functionType, std::string _yulVariable = {}, FunctionCall const* _functionCall = nullptr);
+	///          avariables @p _returndataYulVariable and @p _functionCall.
+	[[nodiscard]] ReturnInfo collect(
+		FunctionType const& _functionType,
+		std::string _returndataYulVariable = {},
+		FunctionCall const* _functionCall = nullptr
+	);
 
 private:
 	langutil::EVMVersion m_evmVersion;
