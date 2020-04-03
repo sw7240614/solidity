@@ -2304,7 +2304,6 @@ std::string YulUtilFunctions::tryDecodeErrorMessageFunction()
 		return util::Whiskers(R"(
 			function <functionName>() -> data {
 				data := mload(<freeMemoryPointer>)
-				mstore(data, 0)
 
 				if lt(returndatasize(), 0x44) {
 					data := 0
