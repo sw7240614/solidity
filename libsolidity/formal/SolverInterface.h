@@ -94,7 +94,8 @@ public:
 			{"mod", 2},
 			{"select", 2},
 			{"store", 3},
-			{"const_array", 2}
+			{"const_array", 2},
+			{"tuple_get", 2}
 		};
 		return operatorsArity.count(name) && operatorsArity.at(name) == arguments.size();
 	}

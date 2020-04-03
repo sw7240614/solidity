@@ -240,6 +240,11 @@ public:
 		std::string _uniqueName,
 		EncodingContext& _context
 	);
+	SymbolicTupleVariable(
+		SortPointer _sort,
+		std::string _uniqueName,
+		EncodingContext& _context
+	);
 
 	std::vector<std::shared_ptr<SymbolicVariable>> const& components()
 	{
