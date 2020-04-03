@@ -1312,7 +1312,9 @@ void IRGeneratorForStatements::appendExternalFunctionCall(
 			let <trySuccessConditionVariable> := <result>
 		<!isTryCall>
 			if iszero(<result>) { <forwardingRevert>() }
-			<decodeReturnParameters>
+			<?hasRetVars>
+				let <retVars> := <decodeReturnParameters>(<pos>, <returnSize>)
+			</hasRetVars>
 		</isTryCall>
 	)");
 	templ("pos", m_returnInfo->returndataVariable);
@@ -1324,7 +1326,33 @@ void IRGeneratorForStatements::appendExternalFunctionCall(
 	templ("address", IRVariable(_functionCall.expression()).part("address").name());
 
 	solAssert(m_returnInfo.has_value() && m_returnInfo->functionCall != nullptr, "");
-	templ("decodeReturnParameters", decodeReturnParameters(*m_returnInfo));
+
+	// Always use the actual return length, and not our calculated expected length, if returndatacopy is supported.
+	// This ensures it can catch badly formatted input from external calls.
+	if (m_context.evmVersion().supportsReturndata())
+		templ("returnSize", "returndatasize()");
+	else
+		templ("returnSize", to_string(m_returnInfo->estimatedReturnSize));
+
+	templ("reservedReturnSize", m_returnInfo->dynamicReturnSize ? "0" : to_string(m_returnInfo->estimatedReturnSize));
+
+	string const retVars = IRVariable(*m_returnInfo->functionCall).commaSeparatedList();
+	templ("hasRetVars", !retVars.empty());
+	templ("returns", !m_returnInfo->returnTypes.empty());
+	solAssert(retVars.empty() == m_returnInfo->returnTypes.empty(), "");
+
+	if (!retVars.empty())
+	{
+		templ("retVars", retVars);
+		templ("decodeReturnParameters",
+			m_utils.decodeReturnParametersFunction(
+				m_context.revertStrings(),
+				m_returnInfo->returnTypes,
+				m_returnInfo->dynamicReturnSize,
+				retVars
+			)
+		);
+	}
 
 	templ("isTryCall", _functionCall.annotation().tryCall);
 	if (_functionCall.annotation().tryCall)
@@ -1386,20 +1414,6 @@ void IRGeneratorForStatements::appendExternalFunctionCall(
 
 	solUnimplementedAssert(funKind != FunctionType::Kind::RIPEMD160, "");
 	solUnimplementedAssert(funKind != FunctionType::Kind::ECRecover, "");
-
-	templ("dynamicReturnSize", m_returnInfo->dynamicReturnSize);
-	// Always use the actual return length, and not our calculated expected length, if returndatacopy is supported.
-	// This ensures it can catch badly formatted input from external calls.
-	if (m_context.evmVersion().supportsReturndata())
-		templ("returnSize", "returndatasize()");
-	else
-		templ("returnSize", to_string(m_returnInfo->estimatedReturnSize));
-
-	templ("reservedReturnSize", m_returnInfo->dynamicReturnSize ? "0" : to_string(m_returnInfo->estimatedReturnSize));
-
-	templ("abiDecode", abi.tupleDecoder(m_returnInfo->returnTypes, true));
-	templ("returns", !m_returnInfo->returnTypes.empty());
-	templ("retVars", IRVariable(_functionCall).commaSeparatedList());
 
 	m_code << templ.render();
 }
@@ -1873,32 +1887,12 @@ void IRGeneratorForStatements::handleCatchFallback(TryCatchClause const& _fallba
 			*_fallback.parameters()->parameters().front()->annotation().type == *TypeProvider::bytesMemory(),
 			""
 		);
+
 		VariableDeclaration const& paramDecl = *_fallback.parameters()->parameters().front();
 		IRVariable const& parameterVariable = m_context.addLocalVariable(paramDecl);
 		string const parameterVariableName = parameterVariable.commaSeparatedList();
-		if (!m_context.evmVersion().supportsReturndata())
-			m_code << "let " << parameterVariableName << " := " << CompilerUtils::zeroPointer;
-		else
-			m_code << Whiskers(R"(
-				let <returndata> := returndatasize()
-				switch <returndata>
-				case 0 {
-					<returndata> := 0x60
-				}
-				default {
-					// TODO: allocate via allocateMemoryArrayFunction(...)
-					// allocate some memory into <returndata> of size returndatasize() + PADDING
-					<returndata> := mload(<freeMemoryPointer>)
-					mstore(<freeMemoryPointer>, add(<returndata>, and(add(returndatasize(), 0x3f), not(0x1f))))
-					// store array length into the front
-					mstore(<returndata>, returndatasize())
-					// append returndata
-					returndatacopy(add(<returndata>, 0x20), 0, returndatasize())
-				}
-			)")
-			("returndata", parameterVariableName)
-			("freeMemoryPointer", to_string(CompilerUtils::freeMemoryPointer))
-			.render();
+
+		m_code << "let " << parameterVariableName << " := " << m_utils.extractReturndataFunction() << "()\n";
 	}
 	_fallback.accept(*this);
 }

@@ -2354,3 +2354,43 @@ std::string YulUtilFunctions::tryDecodeErrorMessageFunction()
 		).render();
 	});
 }
+
+string YulUtilFunctions::extractReturndataFunction()
+{
+	string const functionName = "extract_returndata";
+
+	return m_functionCollector.createFunction(functionName, [&]() {
+		return util::Whiskers(R"(
+			function <functionName>() -> data {
+				<?supportsReturndata>
+					switch returndatasize()
+					case 0 {
+						data := 0x60
+					}
+					default {
+						// NB: We could maybe use allocateMemoryArrayFunction(...) for allocating
+						// our data here, too?
+
+						// allocate some memory into data of size returndatasize() + PADDING
+						data := mload(<freeMemoryPointer>)
+						mstore(<freeMemoryPointer>, add(data, and(add(returndatasize(), 0x3f), not(0x1f))))
+
+						// store array length into the front
+						mstore(data, returndatasize())
+
+						// append to data
+						returndatacopy(add(data, 0x20), 0, returndatasize())
+					}
+				<!supportsReturndata>
+					data := <zeroPointer>
+				</supportsReturndata>
+			}
+		)")
+		("supportsReturndata", m_evmVersion.supportsReturndata())
+		("functionName", functionName)
+		("zeroPointer", to_string(CompilerUtils::zeroPointer))
+		("freeMemoryPointer", to_string(CompilerUtils::freeMemoryPointer))
+		.render();
+	});
+}
+

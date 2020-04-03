@@ -348,6 +348,12 @@ public:
 	/// @returns helper function that tries to decode the error message from a "structured" revert() instruction.
 	std::string tryDecodeErrorMessageFunction();
 
+
+	/// Returns a function name that returns a newly allocated `bytes` array that contains the return data.
+	///
+	/// If returndatacopy() is not supported by the underlying target, a empty array will be returned instead.
+	std::string extractReturndataFunction();
+
 private:
 	/// Special case of conversionFunction - handles everything that does not
 	/// use exactly one variable to hold the value.
