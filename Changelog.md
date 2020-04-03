@@ -1,5 +1,8 @@
 ### 0.7.0 (unreleased)
 
+Breaking changes:
+ * General: a type error message is issued for the deprecated dot syntax for `value` and `gas`.
+
 Language Features:
 
 
