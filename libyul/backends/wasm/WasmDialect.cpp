@@ -204,7 +204,7 @@ void WasmDialect::addEthereumExternals()
 		f.controlFlowSideEffects = ext.controlFlowSideEffects;
 		f.isMSize = false;
 		f.sideEffects.invalidatesStorage = (ext.name == "storageStore");
-		f.literalArguments = false;
+		f.literalArguments = vector<bool>(ext.parameters.size(), false);
 	}
 }
 
@@ -216,6 +216,18 @@ void WasmDialect::addFunction(
 	bool _literalArguments
 )
 {
+	std::vector<bool> literalArgumentsVector(_params.size(), _literalArguments);
+	return addFunction(_name, _params, _returns, _movable, literalArgumentsVector);
+}
+
+void WasmDialect::addFunction(
+	string _name,
+	vector<YulString> _params,
+	vector<YulString> _returns,
+	bool _movable,
+	std::vector<bool>& _literalArguments
+)
+{
 	YulString name{move(_name)};
 	BuiltinFunction& f = m_functions[name];
 	f.name = name;
@@ -224,5 +236,5 @@ void WasmDialect::addFunction(
 	f.returns = std::move(_returns);
 	f.sideEffects = _movable ? SideEffects{} : SideEffects::worst();
 	f.isMSize = false;
-	f.literalArguments = _literalArguments;
+	f.literalArguments = std::move(_literalArguments);
 }

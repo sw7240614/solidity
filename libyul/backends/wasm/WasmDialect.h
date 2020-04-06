@@ -64,6 +64,14 @@ private:
 		bool _literalArguments = false
 	);
 
+	void addFunction(
+		std::string _name,
+		std::vector<YulString> _params,
+		std::vector<YulString> _returns,
+		bool _movable,
+		std::vector<bool>& _literalArguments
+	);
+
 	std::map<YulString, BuiltinFunction> m_functions;
 };
 

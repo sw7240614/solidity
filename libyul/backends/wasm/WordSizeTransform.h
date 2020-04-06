@@ -83,7 +83,7 @@ private:
 
 	void rewriteVarDeclList(std::vector<TypedName>&);
 	void rewriteIdentifierList(std::vector<Identifier>&);
-	void rewriteFunctionCallArguments(std::vector<Expression>&);
+	void rewriteFunctionCallArguments(std::vector<Expression>&, std::vector<bool> const* _literalArgs);
 
 	std::vector<Statement> handleSwitch(Switch& _switch);
 	std::vector<Statement> handleSwitchInternal(

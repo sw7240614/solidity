@@ -55,7 +55,7 @@ pair<YulString, BuiltinFunctionForEVM> createEVMFunction(
 	f.controlFlowSideEffects.terminates = evmasm::SemanticInformation::terminatesControlFlow(_instruction);
 	f.controlFlowSideEffects.reverts = evmasm::SemanticInformation::reverts(_instruction);
 	f.isMSize = _instruction == evmasm::Instruction::MSIZE;
-	f.literalArguments = false;
+	f.literalArguments.resize(info.args, false);
 	f.instruction = _instruction;
 	f.generateCode = [_instruction](
 		FunctionCall const&,
@@ -75,21 +75,35 @@ pair<YulString, BuiltinFunctionForEVM> createFunction(
 	size_t _params,
 	size_t _returns,
 	SideEffects _sideEffects,
-	bool _literalArguments,
+	vector<bool> _literalArguments,
 	std::function<void(FunctionCall const&, AbstractAssembly&, BuiltinContext&, std::function<void()>)> _generateCode
 )
 {
+	solAssert(_literalArguments.size() == _params, "");
+
 	YulString name{std::move(_name)};
 	BuiltinFunctionForEVM f;
 	f.name = name;
 	f.parameters.resize(_params);
 	f.returns.resize(_returns);
 	f.sideEffects = std::move(_sideEffects);
-	f.literalArguments = _literalArguments;
+	f.literalArguments = std::move(_literalArguments);
 	f.isMSize = false;
 	f.instruction = {};
 	f.generateCode = std::move(_generateCode);
 	return {name, f};
+}
+
+pair<YulString, BuiltinFunctionForEVM> createFunction(
+	string _name,
+	size_t _params,
+	size_t _returns,
+	SideEffects _sideEffects,
+	bool _literalArguments,
+	std::function<void(FunctionCall const&, AbstractAssembly&, BuiltinContext&, std::function<void()>)> _generateCode
+)
+{
+	return createFunction(_name, _params, _returns, _sideEffects, vector<bool>(_params, _literalArguments), _generateCode);
 }
 
 map<YulString, BuiltinFunctionForEVM> createBuiltins(langutil::EVMVersion _evmVersion, bool _objectAccess)

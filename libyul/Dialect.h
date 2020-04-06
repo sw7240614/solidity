@@ -46,8 +46,9 @@ struct BuiltinFunction
 	ControlFlowSideEffects controlFlowSideEffects;
 	/// If true, this is the msize instruction.
 	bool isMSize = false;
-	/// If true, can only accept literals as arguments and they cannot be moved to variables.
-	bool literalArguments = false;
+	/// Same length as the arguments, true for every argument that accepts only
+	/// literals which means they can't be moved to variables.
+	std::vector<bool> literalArguments;
 };
 
 struct Dialect: boost::noncopyable
