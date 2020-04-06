@@ -660,9 +660,7 @@ Example that shows how to use the members::
         }
 
         function g() public {
-            this.f.gas(10).value(800)();
-            // New syntax:
-            // this.f{gas: 10, value: 800}()
+            this.f{gas: 10, value: 800}()
         }
     }
 
