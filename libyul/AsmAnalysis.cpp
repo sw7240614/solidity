@@ -261,7 +261,8 @@ vector<YulString> AsmAnalyzer::operator()(FunctionCall const& _funCall)
 	{
 		parameterTypes = &f->parameters;
 		returnTypes = &f->returns;
-		needsLiteralArguments = &f->literalArguments;
+		if (f->literalArguments)
+			needsLiteralArguments = &f->literalArguments.value();
 	}
 	else if (!m_currentScope->lookup(_funCall.functionName.name, GenericVisitor{
 		[&](Scope::Variable const&)
@@ -294,7 +295,7 @@ vector<YulString> AsmAnalyzer::operator()(FunctionCall const& _funCall)
 	vector<YulString> argTypes;
 	for (size_t i = _funCall.arguments.size(); i > 0; i--)
 	{
-		auto const& arg = _funCall.arguments[i - 1];
+		Expression const& arg = _funCall.arguments[i - 1];
 
 		argTypes.emplace_back(expectExpression(arg));
 

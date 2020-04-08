@@ -102,8 +102,8 @@ WasmDialect::WasmDialect()
 	m_functions["unreachable"_yulstring].controlFlowSideEffects.terminates = true;
 	m_functions["unreachable"_yulstring].controlFlowSideEffects.reverts = true;
 
-	addFunction("datasize", {i64}, {i64}, true, true);
-	addFunction("dataoffset", {i64}, {i64}, true, true);
+	addFunction("datasize", {i64}, {i64}, true, {true});
+	addFunction("dataoffset", {i64}, {i64}, true, {true});
 
 	addEthereumExternals();
 }
@@ -213,19 +213,7 @@ void WasmDialect::addFunction(
 	vector<YulString> _params,
 	vector<YulString> _returns,
 	bool _movable,
-	bool _literalArguments
-)
-{
-	std::vector<bool> literalArgumentsVector(_params.size(), _literalArguments);
-	return addFunction(_name, _params, _returns, _movable, literalArgumentsVector);
-}
-
-void WasmDialect::addFunction(
-	string _name,
-	vector<YulString> _params,
-	vector<YulString> _returns,
-	bool _movable,
-	std::vector<bool>& _literalArguments
+	std::vector<bool> _literalArguments
 )
 {
 	YulString name{move(_name)};
@@ -236,5 +224,8 @@ void WasmDialect::addFunction(
 	f.returns = std::move(_returns);
 	f.sideEffects = _movable ? SideEffects{} : SideEffects::worst();
 	f.isMSize = false;
-	f.literalArguments = std::move(_literalArguments);
+	if (!_literalArguments.empty())
+		f.literalArguments = std::move(_literalArguments);
+	else
+		f.literalArguments.reset();
 }

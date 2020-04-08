@@ -41,18 +41,24 @@ void WordSizeTransform::operator()(FunctionDefinition& _fd)
 
 void WordSizeTransform::operator()(FunctionCall& _fc)
 {
-	vector<bool> const* literalArgumentsVector = nullptr;
+	vector<bool> const* literalArguments = nullptr;
 
 	if (BuiltinFunction const* fun = m_inputDialect.builtin(_fc.functionName.name))
-	{
-		literalArgumentsVector = &fun->literalArguments;
+		if (fun->literalArguments)
+			literalArguments = &fun->literalArguments.value();
 
-		for (size_t i = 0; i < _fc.arguments.size(); i++)
-			if (fun->literalArguments[i])
-				get<Literal>(_fc.arguments[i]).type = m_targetDialect.defaultType;
-	}
+	vector<Expression> newArgs;
 
-	rewriteFunctionCallArguments(_fc.arguments, literalArgumentsVector);
+	for (size_t i = 0; i < _fc.arguments.size(); i++)
+		if (!literalArguments || !(*literalArguments)[i])
+			newArgs += expandValueToVector(_fc.arguments[i]);
+		else
+		{
+			get<Literal>(_fc.arguments[i]).type = m_targetDialect.defaultType;
+			newArgs.emplace_back(std::move(_fc.arguments[i]));
+		}
+
+	_fc.arguments = std::move(newArgs);
 }
 
 void WordSizeTransform::operator()(If& _if)
@@ -102,7 +108,7 @@ void WordSizeTransform::operator()(Block& _block)
 					if (BuiltinFunction const* f = m_inputDialect.builtin(std::get<FunctionCall>(*varDecl.value).functionName.name))
 						if (f->name == "datasize"_yulstring || f->name == "dataoffset"_yulstring)
 						{
-							yulAssert(!f->literalArguments.empty() && f->literalArguments[0], "");
+							yulAssert(f->literalArguments && f->literalArguments.value()[0], "");
 							yulAssert(varDecl.variables.size() == 1, "");
 							auto newLhs = generateU64IdentifierNames(varDecl.variables[0].name);
 							vector<Statement> ret;
@@ -163,7 +169,7 @@ void WordSizeTransform::operator()(Block& _block)
 					if (BuiltinFunction const* f = m_inputDialect.builtin(std::get<FunctionCall>(*assignment.value).functionName.name))
 						if (f->name == "datasize"_yulstring || f->name == "dataoffset"_yulstring)
 						{
-							yulAssert(!f->literalArguments.empty() && f->literalArguments[0], "");
+							yulAssert(f->literalArguments && f->literalArguments.value()[0], "");
 							yulAssert(assignment.variableNames.size() == 1, "");
 							auto newLhs = generateU64IdentifierNames(assignment.variableNames[0].name);
 							vector<Statement> ret;
@@ -269,19 +275,6 @@ void WordSizeTransform::rewriteIdentifierList(vector<Identifier>& _ids)
 			return ret;
 		}
 	);
-}
-
-void WordSizeTransform::rewriteFunctionCallArguments(vector<Expression>& _args, vector<bool> const* _literalArgs)
-{
-	vector<Expression> newArgs;
-
-	for (size_t i = 0; i < _args.size(); i++)
-		if (!_literalArgs || !(*_literalArgs)[i])
-			newArgs += expandValueToVector(_args[i]);
-		else
-			newArgs.emplace_back(std::move(_args[i]));
-
-	_args = std::move(newArgs);
 }
 
 vector<Statement> WordSizeTransform::handleSwitchInternal(

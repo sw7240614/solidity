@@ -50,7 +50,8 @@ void ExpressionSplitter::operator()(FunctionCall& _funCall)
 	vector<bool> const* literalArgs = nullptr;
 
 	if (BuiltinFunction const* builtin = m_dialect.builtin(_funCall.functionName.name))
-		literalArgs = &builtin->literalArguments;
+		if (builtin->literalArguments)
+			literalArgs = &builtin->literalArguments.value();
 
 	for (size_t i = _funCall.arguments.size(); i > 0; i--)
 		if (!literalArgs || !(*literalArgs)[i - 1])
