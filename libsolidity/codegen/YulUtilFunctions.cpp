@@ -2372,8 +2372,7 @@ string YulUtilFunctions::extractReturndataFunction()
 						// our data here, too?
 
 						// allocate some memory into data of size returndatasize() + PADDING
-						data := mload(<freeMemoryPointer>)
-						mstore(<freeMemoryPointer>, add(data, and(add(returndatasize(), 0x3f), not(0x1f))))
+						data := <allocate>(and(add(returndatasize(), 0x3f), not(0x1f)))
 
 						// store array length into the front
 						mstore(data, returndatasize())
@@ -2387,9 +2386,9 @@ string YulUtilFunctions::extractReturndataFunction()
 			}
 		)")
 		("supportsReturndata", m_evmVersion.supportsReturndata())
+		("allocate", allocationFunction())
 		("functionName", functionName)
 		("zeroPointer", to_string(CompilerUtils::zeroPointer))
-		("freeMemoryPointer", to_string(CompilerUtils::freeMemoryPointer))
 		.render();
 	});
 }
